@@ -105,6 +105,8 @@ def hex_to_float(s):
     return struct.unpack('>f', binascii.unhexlify(s))[0]
 
 def float_to_hex(f):
+    if(f == 0):
+        return bytes(4)
     return bytes.fromhex(hex(struct.unpack('>I', struct.pack('>f', f))[0])[2:])
 
 if __name__ == "__main__":
