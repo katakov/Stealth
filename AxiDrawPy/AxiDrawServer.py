@@ -12,6 +12,8 @@ class AxiServer():
         print(port)
         self.host = host
         self.daemon = True
+        self.position = [0.0, 0.0, 0.0]
+        self.rotation = [0.0, 0.0, 0.0]
 
     def run(self):
         # ソケット通信作成
@@ -67,14 +69,16 @@ class AxiServer():
         rotation = [r[x*4:x*4 + 4] for x in range(3)]
         # p: [x, y, z] , r: [x, y, z]
 
-        p = [hex_to_float(x.hex()) for x in position]
-        r = [hex_to_float(x.hex()) for x in rotation]
-        print(p)
-        print(r)
+        self.position = [hex_to_float(x.hex()) for x in position]
+        self.rotation = [hex_to_float(x.hex()) for x in rotation]
+        print(self.position)
+        print(self.rotation)
 
         ##########
         # ここにAxiDrawの移動を書く
         ##########
+
+
 
     def dataSend(self, conn):
         ##########
@@ -83,10 +87,8 @@ class AxiServer():
         # getR() # 回転
         ##########
         data = b'2'
-        d = 0.2
-        print(joinData((d, d, d)) )
-        data += joinData((d, d, d)) #joinData(getP()) #
-        data += joinData((d, d, d)) #joinData(getR()) #
+        data += joinData(self.position)
+        data += joinData(self.rotation)
         conn.sendall(data)
 
 # タプルで受け取った3値をbyte文字列にして、結合

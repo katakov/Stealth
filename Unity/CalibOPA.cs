@@ -108,7 +108,54 @@ public class PythonProcess
         }
     }
 }
+//////
+// PythonでServerと通信
+//////
+[Inspector]
+public class PyAxiDraw : PythonProcess
+{
 
+    private string axiStr;
+
+    public void refresh()
+    {
+        StartProcess();
+        axiStr = GetStandardOutput();
+    }
+
+    // 文字列にて出力されたパラメータを分割し、値へ
+    public Vector3[] paramSplitStr()
+    {
+        refresh();
+        Vector3[] vec = new Vector3[2];
+        string[] axiStrSplit = axiStr.Split(":");
+        string[][] eachValue = new string[axiStrSplit.Length][];
+        for(int i = 0; i < axiStrSplit.Length; i++)
+        {
+            eachValue[i] = axiStrSplit[i].Split("-");
+        }
+        for(int i = 0; i < 3; i++)
+        {
+            vec[0][i] = float.Parse(eachValue[0][i]);
+            vec[1][i] = float.Parse(eachValue[1][i]);
+        }
+        // LinQ デバッグしてない
+        // var fl = axiStr.Split(":").Select(s => s.split("-").Select(i => float.Parse(i)));
+        // for(int i = 0; i < 3; i++)
+        // {
+        //     axiDrawP[i] = fl[0][i];
+        //     axiDrawR[i] = fl[1][i];
+        // }
+
+        return vec;
+    }
+
+    public PyAxiDraw(string pyExePath) : base(pyExePath, "", true)
+    {
+        //axiStr = GetStandardOutput();
+    }
+
+}
 //////
 // Socket通信でServerと通信
 //////
@@ -117,6 +164,13 @@ public class AxiDrawClient
 {
     // 通信でやり取りするデータ数
     const short byteL = 25;
+
+    // Header
+    public enum AxiHeader{
+        stop = (char)'0', // b'0'
+        send = (char)'1', // b'1'
+        get  = (char)'2', // b'2'
+    }
 
     // 接続先
     public string hostname = "localhost";
@@ -149,7 +203,7 @@ public class AxiDrawClient
     {
         byte[] data = new byte[byteL];
 
-        data[0] = 0x31; // b'1'
+        data[0] = AxiHeader.send;
         Buffer.BlockCopy(p, 0, data,  1, 12);
         Buffer.BlockCopy(r, 0, data, 13, 12);
 
@@ -161,7 +215,7 @@ public class AxiDrawClient
     public Vector3[] Recv()
     {
         byte[] data = new byte[byteL];
-        data[0] = 0x32; // b'2'
+        data[0] = AxiHeader.get; // b'2'
         socket.Send(data);
 
         socket.Receive(data);
@@ -181,7 +235,7 @@ public class AxiDrawClient
     public void Close()
     {
         byte[] data = new byte[byteL];
-        data[0] = 0x30; // b'0'
+        data[0] = AxiHeader.stop; // b'0'
 
         socket.Send(data);
     }
@@ -218,6 +272,32 @@ public class CalibOPA : MonoBehavior
     //pythonがある場所
     public string pyExePath = @"(Pythonの実行ファイルが置いてある場所)\python.exe";
 
+    // swich how to access AxiDraw by python or socket
+    public enum switchAccessAxiDraw
+    {
+        virtua = -1,
+        socket = 0,
+        python = 1
+
+    }
+    public switchAccessAxiDraw switchAxiDraw = switchAccessAxiDraw.socket;
+
+    [Header("ローカルで保持するAxiDrawの位置姿勢")]
+    public Vector3 localAxiDrawP;
+    public Vector3 localAxiDrawR;
+
+    private Vector3[] axiDrawVec = new Vector3[2];
+    public Vector3 axiDrawP{
+        get {
+            return axiDrawVec[0];
+        }
+    }
+    public Vector3 axiDrawR{
+        get {
+            return axiDrawVec[1];
+        }
+    }
+
     #region PythonServer実行
 
     [Header("AxiDrawへ座標を送信するためのポート番号"), Range(1000, 65535)]
@@ -234,47 +314,11 @@ public class CalibOPA : MonoBehavior
     
     #endregion
     #region AxiDrawの現在地を取得 by Python with StandardOutput
-    public PythonProcess pyAxiDraw;
-    public Vector3 axiDrawP;
-    public Vector3 axiDrawR;
-    private string axiStr;
+    public PyAxiDraw pyAxiDraw;
 
-    private void StartPyAxi()
+    void StartPyAxi()
     {
-        pyAxiDraw = new PythonProcess(pyExePath, "", true);
-        axiStr = pyAxiDraw.GetStandardOutput();
-        paramSplitStr();
-    }
-
-    // 文字列にて出力されたパラメータを分割し、値へ
-    private void paramSplitStr()
-    {
-        string[] axiStrSplit = axiStr.Split(":");
-        string[][] eachValue = new string[axiStrSplit.Length][];
-        for(int i = 0; i < axiStrSplit.Length; i++)
-        {
-            eachValue[i] = axiStrSplit[i].Split("-");
-        }
-        for(int i = 0; i < 3; i++)
-        {
-            axiDrawP[i] = float.Parse(eachValue[0][i]);
-            axiDrawR[i] = float.Parse(eachValue[1][i]);
-        }
-        // LinQ デバッグしてない
-        // var fl = axiStr.Split(":").Select(s => s.split("-").Select(i => float.Parse(i)));
-        // for(int i = 0; i < 3; i++)
-        // {
-        //     axiDrawP[i] = fl[0][i];
-        //     axiDrawR[i] = fl[1][i];
-        // }
-    }
-
-    // Refresh AxiDraw Value
-    private void RefreshAxiValue()
-    {
-        pyAxiDraw.StartProcess();
-        axiStr = pyAxiDraw.GetStandardOutput();
-        paramSplitStr();
+        PyAxiDraw = new PyAxiDraw(pyExePath);
     }
     #endregion
     #region Socket通信
@@ -286,13 +330,35 @@ public class CalibOPA : MonoBehavior
     }
 
     #endregion
+
+    private void StartAxiValue()
+    {
+        StartPyAxi();
+        StartAxiClient();
+    }
+
+    // Refresh AxiDraw Value
+    private void RefreshAxiValue()
+    {
+        switch(switchAxiDraw)
+        {
+        case switchAccessAxiDraw.virtua:
+            axiDrawVec[0] = localAxiDrawP;
+            axiDrawVec[1] = localAxiDrawR;
+            break;
+        case switchAccessAxiDraw.socket:
+            axiDrawVec = AxiDrawClient.GetVec();
+            break;
+        case switchAccessAxiDraw.python:
+            axiDrawVec = pyAxiDraw.paramSplitStr();
+            break;
+
+        }
+
+    }
+
     [Space(2)]
 
-    [Header("Optitrack → Projector")]
-    public Mat4x4 opti2ProMat;
-
-    [Header("Optitrack → AxiDraw")]
-    public Mat4x4 opti2AxiMat;
 
 //////////////////////////////////////////
 /// OptiTrack AxiDraw の位置姿勢取得
@@ -340,27 +406,40 @@ public class CalibOPA : MonoBehavior
     public List<Vector3> axiR;
 
     // 座標追加
+    private void appendOpti()
+    {
+        optiP.append(getOptiP());
+        optiR.append(getOptiR());
+    }
+    private void appendAxi()
+    {
+        axiP.append(getAxiP());
+        axiR.append(getAxiQ());
+    }
     private void append()
     {
-        optiP.append(optiP());
-        optiR.append(optiR());
-
-        Vector3[] axi = axiDrawClient.GetVec();
-
-        axiP.append(axi[0]);
-        axiR.append(axi[1]);
-
+        appendOpti();
+        appendAxi();
     }
 
-    // Calib Opti 2 Axi
-    private void StartCalibO2A()
-    {
-        // Opti 2 Axi
-        Vector3 optiPs = getOptiP();
-        Quaternion optiQs = getOptiQ();
 
-        Vector3 axiPs = getAxiP();
-        Quaternion axiQs = getAxiQ();
+    [Header("Optitrack → Projector")]
+    public Mat4x4 opti2ProMat;
+
+    [Header("Optitrack → AxiDraw")]
+    public Mat4x4 opti2AxiMat;
+    
+
+    // Calib Opti 2 Axi
+    private void CalibO2A()
+    {
+        // 
+        if (optiP.Size() == 3)
+        {
+
+
+
+        }
     }
     #endregion
 
@@ -368,7 +447,11 @@ public class CalibOPA : MonoBehavior
     {
         if(Input.GetKeyDown() == KeyCode.Space)
         {
-
+            
+        }
+        if(Input.GetKeyDown() == KeyCode.Return)
+        {
+            
         }
     }
 
@@ -378,7 +461,14 @@ public class CalibOPA : MonoBehavior
         // StartPython
         StartProcess();
 
-        StartCalibO2A();
+        StartAxiValue();
+        
+    }
+
+    private void LastUpdate()
+    {
+        // axiDraw更新
+        RefreshAxiValue();
 
 
     }
