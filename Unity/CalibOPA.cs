@@ -288,14 +288,29 @@ public class CalibOPA : MonoBehavior
 
     private Vector3[] axiDrawVec = new Vector3[2];
     public Vector3 axiDrawP{
+        set {
+            axiDrawVec[0] = value;
+        }
         get {
             return axiDrawVec[0];
         }
     }
     public Vector3 axiDrawR{
+        set {
+            axiDrawVec[1] = value;
+        }
         get {
             return axiDrawVec[1];
         }
+    }
+
+    // AxiDrawを動かす関数
+    public void moveAxi(Vector3? p = null, Vector3? r = null)
+    {
+        if(p != null) localAxiDrawP = p;
+        if(r != null) localAxiDrawR = r;
+        
+        axiDrawClient.Send(localAxiDrawP, localAxiDrawR);
     }
 
     #region PythonServer実行
@@ -436,7 +451,7 @@ public class CalibOPA : MonoBehavior
         // 
         if (optiP.Size() == 3)
         {
-
+            
 
 
         }
