@@ -603,6 +603,7 @@ public class CalibOPA : MonoBehavior
             if(calibStats == CalibStats.start)
             {
                 calibStats = CalibStats.end;
+                endCalibAxi = true;
             }
         }
     }
