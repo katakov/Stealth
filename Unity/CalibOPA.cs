@@ -210,11 +210,20 @@ public class AxiDrawClient
         byte[] data = new byte[byteL];
 
         data[0] = AxiHeader.send;
-        Buffer.BlockCopy(p, 0, data,  1, 12);
-        Buffer.BlockCopy(r, 0, data, 13, 12);
+        Buffer.BlockCopy(v2fa(p), 0, data,  1, 12);
+        Buffer.BlockCopy(v2fa(r), 0, data, 13, 12);
 
         socket.Send(data);
 
+    }
+
+    private float[] v2fa(Vector3 v)
+    {
+        float[] f = new float[3];
+        f[0] = v[0];
+        f[1] = v[1];
+        f[2] = v[2];
+        return f;
     }
 
     // データを受信
