@@ -1,5 +1,8 @@
+using Boo.Lang;
+using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using UnityEngine;
@@ -9,19 +12,21 @@ using UnityEngine;
 // Pythonを実行する
 // ref: https://tofgame.hatenablog.com/entry/2019/04/30/011221
 //////
-[Inspector]
+[SerializeField]
 public class PythonProcess
 {
     #region インスペクタに表示させるパラメータ
     [Header("実行したいスクリプトがある場所")]
-    public string pyCodePath = @"(実行したいスクリプトの場所)\AxiDraw****.py";
+    //public string pyCodePath = @"(実行したいスクリプトの場所)\AxiDraw****.py";
+    public string pyCodePath = @"C:\Unity_develop\TransRotateServoITE\Assets\katagiri\AxiDrawPy\AxiDrawServer.py"; 
 
     [Header("標準出力文字列")]
     public string  coutStr = "";
     #endregion
 
     //pythonがある場所
-    private string pyExePath = @"(Pythonの実行ファイルが置いてある場所)\python.exe";
+    //private string pyExePath = @"(Pythonの実行ファイルが置いてある場所)\python.exe";
+    private string pyExePath = @"C:\Users\kiyok\AppData\Local\Programs\Python\Python38-32\python.exe";
 
     //外部プロセスの設定
     private ProcessStartInfo processStartInfo;
@@ -100,6 +105,7 @@ public class PythonProcess
         StartProcess();
     }
 
+    // デストラクタなので ~ は要ります
     public ~PythonProcess()
     {
         if(coutFlag)
@@ -111,7 +117,7 @@ public class PythonProcess
 //////
 // PythonでServerと通信
 //////
-[Inspector]
+[SerializeField]
 public class PyAxiDraw : PythonProcess
 {
 
@@ -128,11 +134,11 @@ public class PyAxiDraw : PythonProcess
     {
         refresh();
         Vector3[] vec = new Vector3[2];
-        string[] axiStrSplit = axiStr.Split(":");
+        string[] axiStrSplit = axiStr.Split(':');
         string[][] eachValue = new string[axiStrSplit.Length][];
         for(int i = 0; i < axiStrSplit.Length; i++)
         {
-            eachValue[i] = axiStrSplit[i].Split("-");
+            eachValue[i] = axiStrSplit[i].Split('-');
         }
         for(int i = 0; i < 3; i++)
         {
@@ -166,10 +172,10 @@ public class AxiDrawClient
     const short byteL = 25;
 
     // Header
-    public enum AxiHeader{
-        stop = (char)'0', // b'0'
-        send = (char)'1', // b'1'
-        get  = (char)'2', // b'2'
+    public enum AxiHeader : byte{
+        stop = 0x30, // b'0'
+        send = 0x31, // b'1'
+        get  = 0x32, // b'2'
     }
 
     // 接続先
@@ -223,25 +229,21 @@ public class AxiDrawClient
         Vector3[] vec = new Vector3[2];
 
 #region ダメならコメントアウトしてるやつと交換
-        Vector3 tmp = new Vector3();
-        Buffer.BlockCopy(data,  1, tmp,  0, 12);
-        vec[0] = tmp;
-        Buffer.BlockCopy(data, 13, tmp,  0, 12);
-        vec[1] = tmp;
+        // Vector3 tmp = new Vector3();
+        // Buffer.BlockCopy(data,  1, tmp,  0, 12);
+        // vec[0] = tmp;
+        // Buffer.BlockCopy(data, 13, tmp,  0, 12);
+        // vec[1] = tmp;
 
-        // float ftmp = 0.0f;
-        // Buffer.BlockCopy(data, 1, ftmp, 0, 4);
-        // vec[0].x = ftmp;
-        // Buffer.BlockCopy(data, 5, ftmp, 0, 4);
-        // vec[0].y = ftmp;
-        // Buffer.BlockCopy(data, 9, ftmp, 0, 4);
-        // vec[0].z = ftmp;
-        // Buffer.BlockCopy(data, 13, ftmp, 0, 4);
-        // vec[1].x = ftmp;
-        // Buffer.BlockCopy(data, 17, ftmp, 0, 4);
-        // vec[1].y = ftmp;
-        // Buffer.BlockCopy(data, 21, ftmp, 0, 4);
-        // vec[1].z = ftmp;
+        float[] ftmp = new float[3];
+        Buffer.BlockCopy(data, 1, ftmp, 0, 12);
+        vec[0].x = ftmp[0];
+        vec[0].y = ftmp[1];
+        vec[0].z = ftmp[2];
+        Buffer.BlockCopy(data, 13, ftmp, 0, 12);
+        vec[1].x = ftmp[0];
+        vec[1].y = ftmp[1];
+        vec[1].z = ftmp[2];
 #endregion
         return vec;
     }
@@ -375,8 +377,8 @@ public class CalibOPA : MonoBehavior
         switch(switchAxiDraw)
         {
         case switchAccessAxiDraw.virtua:
-            axiDrawVec[0] = localAxiDrawP;
-            axiDrawVec[1] = localAxiDrawR;
+            axiDrawP = localAxiDrawP;
+            axiDrawR = localAxiDrawR;
             break;
         case switchAccessAxiDraw.socket:
             axiDrawVec = axiDrawClient.GetVec();
@@ -576,7 +578,7 @@ public class CalibOPA : MonoBehavior
     {
         if(moveModelFlag && endCalibAxi)
         {
-            modelObj.transform.localPosition = getAxiP;
+            modelObj.transform.localPosition = getAxiP();
         }
     }
 
@@ -584,21 +586,21 @@ public class CalibOPA : MonoBehavior
 
     private void InputKey()
     {
-        if(Input.GetKeyDown() == KeyCode.Space)
+        if(Input.GetKeyDown(KeyCode.Space))
         {
-            if (calibStats % 2 == 0)
+            if ((int)calibStats % 2 == 0)
             {
                 CalibO2A();
             }
         }
-        if(Input.GetKeyDown() == KeyCode.Return)
+        if(Input.GetKeyDown(KeyCode.Return))
         {
-            if (calibStats % 2 == 1)
+            if ((int)calibStats % 2 == 1)
             {
                 CalibO2A();
             }
         }
-        if(InputKey.GetKeyDown() == KeyCode.Esc)
+        if(InputKey.GetKeyDown(KeyCode.Esc))
         {
             if(calibStats == CalibStats.start)
             {
@@ -612,8 +614,7 @@ public class CalibOPA : MonoBehavior
     {
 
         // StartPython
-        StartProcess();
-
+        StartPyServer();
         StartAxiValue();
         
     }
