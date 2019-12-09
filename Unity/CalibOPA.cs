@@ -437,36 +437,149 @@ public class CalibOPA : MonoBehavior
         appendAxi();
     }
 
+    private void calcO2A()
+    {
+        Matrix4x4 tmpP = Matrix4x4.identity;
+
+        tmpP[0, 3] = optiP[0].x;
+        tmpP[1, 3] = optiP[0].y;
+        tmpP[2, 3] = optiP[0].z;
+
+        float tmp0 = axiP[1].y * axiP[2].x - axiP[1].x * axiP[2].y;
+        float tmp1 = axiP[1].x - axiP[2].x;
+        float tmp2 = axiP[1].y - axiP[2].y;
+
+        float htmp1 = optiP[1].x * axiP[2].y - optiP[2].x * axiP[1].y;
+        float htmp2 = optiP[1].x * axiP[2].x - optiP[2].x * axiP[1].x;
+        float htmp3 = optiP[1].y * axiP[2].y - optiP[2].y * axiP[1].y;
+        float htmp4 = optiP[1].y * axiP[2].x - optiP[2].y * axiP[1].x;
+        
+        tmpP[0, 0] = htmp1 + axiP[0].x * tmp2;
+        tmpP[0, 1] = htmp2 + axiP[0].x * tmp1;
+        tmpP[1, 0] = htmp1 + axiP[0].y * tmp2;
+        tmpP[1, 1] = htmp2 + axiP[0].y * tmp1;
+        
+        tmpP[0, 0] /= tmp0;
+        tmpP[0, 1] /= tmp0;
+        tmpP[1, 0] /= tmp0;
+        tmpP[1, 1] /= tmp0;
+
+        opti2AxiMat = tmpP.inverse;
+    }
+
 
     [Header("Optitrack → Projector")]
-    public Mat4x4 opti2ProMat;
+    public Matrix4x4 opti2ProMat;
 
     [Header("Optitrack → AxiDraw")]
-    public Mat4x4 opti2AxiMat;
+    public Matrix4x4 opti2AxiMat;
     
+    [Header("Apply opti → Axi")]
+    public bool opti2AxiFlag;
+
+    public enum CalibStats : int
+    {
+        start = 0,
+        move00,
+        getOpti00,
+        move01,
+        getOpti01,
+        move10,
+        getOpti10,
+        end
+    }
+
+    public CalibStats calibStats = CalibStats.start;
 
     // Calib Opti 2 Axi
     private void CalibO2A()
     {
-        // 
-        if (optiP.Size() == 3)
+        switch(calibStats)
         {
+        case CalibStats.start:
+            Debug.Log("Plz, set Axi & Opti");
+            calibStats++;
+            break;
+        case CalibStats.move00:
+            moveAxi(new Vector3(0, 0, 0));
+            calibStats++;
+            break;
+        case CalibStats.getOpti00:
+            append();
+            calibStats++;
+            break;
+        case CalibStats.move01:
+            moveAxi(new Vector3(0, 1, 0));
+            calibStats++;
+            break;
+        case CalibStats.getOpti01:
+            append();
+            calibStats++;
+            break;
+        case CalibStats.move10:
+            moveAxi(new Vector3(1, 0, 0));
+            calibStats++;
+            break;
+        case CalibStats.getOpti10:
+            append();
+            calibStats++;
+            calcO2A();
+            endCalibAxi = true;
+            break;
             
+        case CalibStats.end:
+            break;
+            
+        default:
+            break;
+        }
+    }
 
+    public void ApplyMat()
+    {
+        
+
+        if(calibStats == CalibStats.end && opti2AxiFlag)
+        {
+            moveAxi(opti2ProMat.MultiplyPoint(getOptiP()));
 
         }
     }
+    #endregion
+
+    #region model
+
+    public GameObject modelObj;
+
+    public bool moveModelFlag;
+
+    private bool endCalibAxi;
+
+    private void ApplyAxi2Model()
+    {
+        if(moveModelFlag && endCalibAxi)
+        {
+            modelObj.transform.localPosition = getAxiP;
+        }
+    }
+
     #endregion
 
     private void InputKey()
     {
         if(Input.GetKeyDown() == KeyCode.Space)
         {
-            
+            if (calibStats % 2 == 0)
+            {
+                CalibO2A();
+            }
         }
         if(Input.GetKeyDown() == KeyCode.Return)
         {
-            
+            if (calibStats % 2 == 1)
+            {
+                CalibO2A();
+            }
         }
     }
 
@@ -490,7 +603,9 @@ public class CalibOPA : MonoBehavior
 
     private void Update()
     {
+        InputKey();
 
+        ApplyMat();
     }
 
     public void OnApplicationQuit()
