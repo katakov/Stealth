@@ -222,10 +222,27 @@ public class AxiDrawClient
 
         Vector3[] vec = new Vector3[2];
 
+#region ダメならコメントアウトしてるやつと交換
+        Vector3 tmp = new Vector3();
+        Buffer.BlockCopy(data,  1, tmp,  0, 12);
+        vec[0] = tmp;
+        Buffer.BlockCopy(data, 13, tmp,  0, 12);
+        vec[1] = tmp;
 
-        Buffer.BlockCopy(data,  1, vec[0],  0, 12);
-        Buffer.BlockCopy(data, 13, vec[1],  0, 12);
-
+        // float ftmp = 0.0f;
+        // Buffer.BlockCopy(data, 1, ftmp, 0, 4);
+        // vec[0].x = ftmp;
+        // Buffer.BlockCopy(data, 5, ftmp, 0, 4);
+        // vec[0].y = ftmp;
+        // Buffer.BlockCopy(data, 9, ftmp, 0, 4);
+        // vec[0].z = ftmp;
+        // Buffer.BlockCopy(data, 13, ftmp, 0, 4);
+        // vec[1].x = ftmp;
+        // Buffer.BlockCopy(data, 17, ftmp, 0, 4);
+        // vec[1].y = ftmp;
+        // Buffer.BlockCopy(data, 21, ftmp, 0, 4);
+        // vec[1].z = ftmp;
+#endregion
         return vec;
     }
     // 関数名をわかりやすくするための関数
@@ -362,7 +379,7 @@ public class CalibOPA : MonoBehavior
             axiDrawVec[1] = localAxiDrawR;
             break;
         case switchAccessAxiDraw.socket:
-            axiDrawVec = AxiDrawClient.GetVec();
+            axiDrawVec = axiDrawClient.GetVec();
             break;
         case switchAccessAxiDraw.python:
             axiDrawVec = pyAxiDraw.paramSplitStr();
@@ -541,7 +558,7 @@ public class CalibOPA : MonoBehavior
 
         if(calibStats == CalibStats.end && opti2AxiFlag)
         {
-            moveAxi(opti2ProMat.MultiplyPoint(getOptiP()));
+            moveAxi(opti2ProMat.MultiplyPoint(getOptiP()), null);
 
         }
     }
