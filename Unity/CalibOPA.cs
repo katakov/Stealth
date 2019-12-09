@@ -581,6 +581,13 @@ public class CalibOPA : MonoBehavior
                 CalibO2A();
             }
         }
+        if(InputKey.GetKeyDown() == KeyCode.Esc)
+        {
+            if(calibStats == CalibStats.start)
+            {
+                calibStats = CalibStats.end;
+            }
+        }
     }
 
     private void Start() 
@@ -593,7 +600,7 @@ public class CalibOPA : MonoBehavior
         
     }
 
-    private void LastUpdate()
+    private void FixedUpdate()
     {
         // axiDraw更新
         RefreshAxiValue();
