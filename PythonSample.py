@@ -29,7 +29,7 @@ def receiveNewFrame( frameNumber, markerSetCount, unlabeledMarkersCount, rigidBo
 # This is a callback function that gets connected to the NatNet client. It is called once per rigid body per frame
 def receiveRigidBodyFrame( id, position, rotation ):
     #print( "Received frame for rigid body", id )
-    print( position[0], ":", position[1], ":", position[2])
+    print( str(position[0]) + ":"+ str(position[1]) + ":"+ str(position[2]))
     exit
 
 # This will create a new NatNet client
